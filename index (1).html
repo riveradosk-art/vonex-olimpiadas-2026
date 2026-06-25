@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Olimpiadas Vonex 2026 · Comas</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f7; color: #1a1a2e; min-height: 100vh; }
+
+  .header { background: linear-gradient(135deg, #0d1b5e 0%, #1a3a8f 60%, #1e4db5 100%); border-bottom: 4px solid #f5a623; }
+  .topbar { background: #f5a623; padding: 6px 24px; font-size: 12px; font-weight: 600; color: #1a1a1a; display: flex; justify-content: space-between; align-items: center; }
+  .brand { display: flex; align-items: center; gap: 16px; padding: 16px 24px; }
+  .vonex-logo { background: #fff; border-radius: 8px; padding: 8px 16px; font-size: 20px; font-weight: 900; color: #1a3a8f; letter-spacing: -1px; }
+  .brand-text h1 { color: #f5a623; font-size: 20px; font-weight: 800; }
+  .brand-text h1 span { color: #fff; }
+  .brand-text p { color: #90aadd; font-size: 12px; margin-top: 3px; }
+
+  .content { max-width: 1100px; margin: 0 auto; padding: 20px; }
+
+  /* LOADING */
+  .loading { text-align: center; padding: 60px 20px; }
+  .spinner { width: 40px; height: 40px; border: 4px solid #e0e0e0; border-top-color: #1a3a8f; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading p { color: #888; font-size: 14px; }
+
+  /* ERROR */
+  .error-box { background: #fde8e8; border: 1px solid #f5c6c6; border-radius: 10px; padding: 20px; color: #a93226; font-size: 13px; margin: 20px 0; }
+
+  /* SUMMARY */
+  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .scard { background: #fff; border-radius: 10px; padding: 16px; border-top: 4px solid #f5a623; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .scard.green { border-top-color: #27ae60; }
+  .scard.red { border-top-color: #e74c3c; }
+  .scard.blue { border-top-color: #2980b9; }
+  .sval { font-size: 24px; font-weight: 700; color: #1a3a8f; }
+  .scard.green .sval { color: #27ae60; }
+  .scard.red .sval { color: #e74c3c; }
+  .scard.blue .sval { color: #2980b9; }
+  .slbl { font-size: 12px; color: #888; margin-top: 4px; }
+
+  /* PROGRESS */
+  .progress-section { background: #fff; border-radius: 10px; padding: 16px 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .progress-header { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: #444; }
+  .progress-bar-bg { background: #e8eaf0; border-radius: 20px; height: 14px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; border-radius: 20px; background: linear-gradient(90deg, #1a3a8f, #f5a623); transition: width 1s ease; }
+
+  /* CHARTS */
+  .charts-row { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 16px; margin-bottom: 20px; }
+  .card { background: #fff; border-radius: 10px; padding: 18px 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .card-title { font-size: 13px; font-weight: 600; color: #555; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
+  .card-title::before { content: ''; display: inline-block; width: 3px; height: 14px; background: #f5a623; border-radius: 2px; }
+
+  /* RANKING */
+  .section-title { font-size: 14px; font-weight: 700; color: #1a1a2e; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .ranking { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+  .rrow { background: #fff; border-radius: 10px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); border-left: 4px solid #e8eaf0; transition: transform .15s; }
+  .rrow:hover { transform: translateX(3px); }
+  .rrow.gold { border-left-color: #f5a623; }
+  .rrow.silver { border-left-color: #aaa; }
+  .rrow.bronze { border-left-color: #cd7f32; }
+  .rrow.ok { border-left-color: #27ae60; }
+  .rrow.warn { border-left-color: #e67e22; }
+  .rrow.danger { border-left-color: #e74c3c; }
+  .rpos { font-size: 22px; min-width: 34px; text-align: center; }
+  .rinfo { flex: 1; }
+  .rname { font-size: 13px; font-weight: 700; color: #1a1a2e; }
+  .rciclo { font-size: 11px; color: #888; margin-top: 2px; }
+  .rbar-wrap { width: 180px; }
+  .rbar-bg { background: #e8eaf0; border-radius: 6px; height: 10px; overflow: hidden; margin-top: 4px; }
+  .rbar-fill { height: 100%; border-radius: 6px; }
+  .rpct { font-size: 14px; font-weight: 700; min-width: 52px; text-align: right; }
+
+  /* TABLE */
+  .table-wrap { background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 20px; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 700px; }
+  thead tr { background: #1a3a8f; color: #fff; }
+  thead th { padding: 11px 14px; text-align: left; font-weight: 600; font-size: 12px; }
+  thead th:not(:first-child) { text-align: center; }
+  tbody tr { border-bottom: 1px solid #f0f2f7; transition: background .15s; }
+  tbody tr:hover { background: #f7f9ff; }
+  tbody tr.total-row { font-weight: 700; background: #f0f4ff; border-top: 2px solid #1a3a8f; }
+  tbody td { padding: 10px 14px; }
+  tbody td:not(:first-child) { text-align: center; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+  .tag.success { background: #d5f5e3; color: #1a7a40; }
+  .tag.warn { background: #fef9e7; color: #b7770d; }
+  .tag.danger { background: #fde8e8; color: #a93226; }
+
+  /* MONEY */
+  .money-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .mcard { background: #fff; border-radius: 10px; padding: 16px 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .mcard-title { font-size: 12px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 12px; }
+  .mcard-row { display: flex; justify-content: space-between; font-size: 13px; padding: 7px 0; border-bottom: 1px solid #f0f2f7; }
+  .mcard-row:last-child { border-bottom: none; font-weight: 700; font-size: 14px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+
+  .footer { text-align: center; padding: 20px; font-size: 11px; color: #aaa; }
+  .update-badge { background: #e8f5e9; color: #2e7d32; font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 600; }
+
+  @media (max-width: 700px) {
+    .summary-grid { grid-template-columns: repeat(2, 1fr); }
+    .charts-row { grid-template-columns: 1fr; }
+    .money-row { grid-template-columns: 1fr; }
+    .rbar-wrap { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="topbar">
+    <span>📍 Sede COMAS · Olimpiadas Vonex 2026</span>
+    <span id="updateTime" class="update-badge">⟳ Cargando datos...</span>
+  </div>
+  <div class="brand">
+    <div class="vonex-logo">vonex</div>
+    <div class="brand-text">
+      <h1>OLIMPIADAS VONEX <span>2026</span></h1>
+      <p id="subTitle">Control de pagos · Sede Comas · Cargando...</p>
+    </div>
+  </div>
+</div>
+
+<div class="content">
+  <div id="loadingDiv" class="loading">
+    <div class="spinner"></div>
+    <p>Cargando datos desde Google Sheets...</p>
+  </div>
+  <div id="mainContent" style="display:none"></div>
+</div>
+
+<div class="footer">Olimpiadas Vonex 2026 · Sede Comas · Datos en tiempo real desde Google Sheets</div>
+
+<script>
+// ============================================================
+// CONFIGURACIÓN - Solo cambia el SHEET_ID si cambia el archivo
+// ============================================================
+const SHEET_ID = '1bFrY4Xxcsh_i81frRgjDEt4gHEUvGSaS';
+const GID_GENERAL = '111995310'; // hoja GENERAL
+
+// URL para leer CSV público
+const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID_GENERAL}`;
+
+// ============================================================
+// LEER DATOS
+// ============================================================
+function loadData() {
+  Papa.parse(CSV_URL, {
+    download: true,
+    skipEmptyLines: true,
+    complete: function(results) {
+      try {
+        const data = parseData(results.data);
+        renderDashboard(data);
+        document.getElementById('updateTime').textContent = '✓ Actualizado: ' + new Date().toLocaleTimeString('es-PE');
+      } catch(e) {
+        showError('Error al procesar los datos: ' + e.message);
+      }
+    },
+    error: function(err) {
+      showError('No se pudo conectar con Google Sheets. Verifica que el archivo sea público.<br><small>' + err + '</small>');
+    }
+  });
+}
+
+function parseData(rows) {
+  // Buscar fila de tutores (filas con datos de tutores empiezan con número)
+  const tutores = [];
+  let metaTotal = 0, recolectadoTotal = 0, faltaTotal = 0;
+  let totalEfectivo = 0, totalYape = 0;
+  let metaAlumnos = 0, pagantesTotal = 0;
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    // Fila de tutor: primera celda es número del 1 al 7
+    const num = parseFloat(row[0]);
+    if (!isNaN(num) && num >= 1 && num <= 10 && row[1] && row[1].trim().length > 5) {
+      const meta = parseFloat(row[4]) || 0;
+      const pagantes = parseFloat(row[3]) || 0;
+      const metaS = parseFloat(row[5]) || 0;
+      const recaudado = parseFloat(row[6]) || 0;
+      const falta = parseFloat(row[7]) || 0;
+      const avance = parseFloat(row[8]) || 0;
+
+      // Efectivo y Yape totales (columnas del final)
+      const efectivo = parseFloat(row[row.length - 4]) || 0;
+      const yape = parseFloat(row[row.length - 3]) || 0;
+
+      tutores.push({
+        num: num,
+        nombre: row[1].trim(),
+        ciclo: row[2] ? row[2].trim() : '',
+        metaAlumnos: meta,
+        pagantes: pagantes,
+        metaS: metaS,
+        recaudado: recaudado,
+        falta: falta,
+        avance: avance,
+        efectivo: efectivo,
+        yape: yape
+      });
+
+      metaTotal += metaS;
+      recolectadoTotal += recaudado;
+      faltaTotal += falta;
+      totalEfectivo += efectivo;
+      totalYape += yape;
+      metaAlumnos += meta;
+      pagantesTotal += pagantes;
+    }
+  }
+
+  // Si no encontró datos con ese método, usa los datos del xlsx que ya teníamos
+  if (tutores.length === 0) throw new Error('No se encontraron datos de tutores en la hoja.');
+
+  return {
+    tutores,
+    metaTotal,
+    recolectadoTotal,
+    faltaTotal,
+    totalEfectivo,
+    totalYape,
+    metaAlumnos,
+    pagantesTotal,
+    avanceGeneral: metaTotal > 0 ? (recolectadoTotal / metaTotal * 100) : 0
+  };
+}
+
+function showError(msg) {
+  document.getElementById('loadingDiv').style.display = 'none';
+  document.getElementById('mainContent').style.display = 'block';
+  document.getElementById('mainContent').innerHTML = `<div class="error-box">⚠️ ${msg}<br><br>
+    <strong>Verifica que el Google Sheet esté público:</strong><br>
+    Compartir → Acceso general → "Cualquiera con el enlace" → Lector</div>
+    ${getFallbackHTML()}`;
+  renderFallbackCharts();
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function renderDashboard(d) {
+  document.getElementById('loadingDiv').style.display = 'none';
+  document.getElementById('subTitle').textContent = `Control de pagos · Sede Comas · ${d.tutores.length} tutores`;
+
+  const avPct = d.avanceGeneral.toFixed(1);
+  const faltaColor = d.faltaTotal > 0 ? '#e74c3c' : '#27ae60';
+
+  // Ordenar por avance descendente
+  const sorted = [...d.tutores].sort((a, b) => b.avance - a.avance);
+
+  const medals = ['🥇','🥈','🥉'];
+  const rankClass = (i, av) => {
+    if (i === 0) return 'gold';
+    if (i === 1) return 'silver';
+    if (i === 2) return 'bronze';
+    if (av >= 1) return 'ok';
+    if (av >= 0.7) return 'warn';
+    return 'danger';
+  };
+  const pctColor = (av) => {
+    if (av >= 1) return '#27ae60';
+    if (av >= 0.85) return '#f5a623';
+    if (av >= 0.6) return '#e67e22';
+    return '#e74c3c';
+  };
+  const barColor = (av) => {
+    if (av >= 1) return '#27ae60';
+    if (av >= 0.85) return '#f5a623';
+    if (av >= 0.6) return '#e67e22';
+    return '#e74c3c';
+  };
+  const tagClass = (av) => {
+    if (av >= 1) return 'success';
+    if (av >= 0.75) return 'warn';
+    return 'danger';
+  };
+
+  const rankingHTML = sorted.map((t, i) => {
+    const pct = (t.avance * 100).toFixed(1);
+    const barW = Math.min(t.avance * 100, 100).toFixed(1);
+    const pos = i < 3 ? medals[i] : `<span style="font-size:14px;color:#888;font-weight:700">${i+1}°</span>`;
+    return `
+    <div class="rrow ${rankClass(i, t.avance)}">
+      <div class="rpos">${pos}</div>
+      <div class="rinfo">
+        <div class="rname">${t.nombre}</div>
+        <div class="rciclo">${t.ciclo} · Meta: ${t.metaAlumnos} alumnos · Recaudado: S/ ${t.recaudado.toLocaleString('es-PE')}</div>
+      </div>
+      <div class="rbar-wrap">
+        <div class="rbar-bg"><div class="rbar-fill" style="width:${barW}%;background:${barColor(t.avance)}"></div></div>
+      </div>
+      <span class="rpct" style="color:${pctColor(t.avance)}">${pct}%</span>
+    </div>`;
+  }).join('');
+
+  const tableRows = sorted.map(t => {
+    const pct = (t.avance * 100).toFixed(1);
+    const faltaStr = t.falta < 0 ? `<span style="color:#27ae60">+S/ ${Math.abs(t.falta).toLocaleString('es-PE')}</span>` : `<span style="color:#e74c3c">S/ ${t.falta.toLocaleString('es-PE')}</span>`;
+    return `<tr>
+      <td><strong>${t.nombre}</strong></td>
+      <td>${t.ciclo}</td>
+      <td>S/ ${t.metaS.toLocaleString('es-PE')}</td>
+      <td>S/ ${t.efectivo.toLocaleString('es-PE')}</td>
+      <td>S/ ${t.yape.toLocaleString('es-PE')}</td>
+      <td>S/ ${t.recaudado.toLocaleString('es-PE')}</td>
+      <td>${faltaStr}</td>
+      <td><span class="tag ${tagClass(t.avance)}">${pct}%</span></td>
+    </tr>`;
+  }).join('');
+
+  const html = `
+    <div class="summary-grid">
+      <div class="scard"><div class="sval">S/ ${d.recolectadoTotal.toLocaleString('es-PE')}</div><div class="slbl">💰 Total recolectado</div></div>
+      <div class="scard green"><div class="sval">S/ ${d.metaTotal.toLocaleString('es-PE')}</div><div class="slbl">🎯 Meta en efectivo</div></div>
+      <div class="scard red"><div class="sval" style="color:${faltaColor}">S/ ${d.faltaTotal.toLocaleString('es-PE')}</div><div class="slbl">⚠️ Falta recaudar</div></div>
+      <div class="scard blue"><div class="sval">${avPct}%</div><div class="slbl">📈 Avance general</div></div>
+    </div>
+
+    <div class="progress-section">
+      <div class="progress-header">
+        <span>Avance general de recaudación</span>
+        <span style="color:#1a3a8f;font-weight:700">S/ ${d.recolectadoTotal.toLocaleString('es-PE')} / S/ ${d.metaTotal.toLocaleString('es-PE')}</span>
+      </div>
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" style="width:${Math.min(d.avanceGeneral,100).toFixed(1)}%"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:#aaa;margin-top:5px">
+        <span>S/ 0</span>
+        <span style="color:#f5a623;font-weight:600">${avPct}% alcanzado</span>
+        <span>S/ ${d.metaTotal.toLocaleString('es-PE')}</span>
+      </div>
+    </div>
+
+    <div class="charts-row">
+      <div class="card">
+        <div class="card-title">Recaudación por tutor (Efectivo + Yape)</div>
+        <div style="position:relative;height:220px"><canvas id="barChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Efectivo vs Yape</div>
+        <div style="position:relative;height:180px"><canvas id="donutChart"></canvas></div>
+        <div style="display:flex;gap:16px;justify-content:center;margin-top:10px;font-size:12px">
+          <span><span class="dot" style="background:#1a3a8f"></span>Efectivo S/ ${d.totalEfectivo.toLocaleString('es-PE')}</span>
+          <span><span class="dot" style="background:#9b59b6"></span>Yape S/ ${d.totalYape.toLocaleString('es-PE')}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">🏆 Ranking de tutores</div>
+    <div class="ranking">${rankingHTML}</div>
+
+    <div class="money-row">
+      <div class="mcard">
+        <div class="mcard-title">💵 Efectivo vs Yape</div>
+        <div class="mcard-row"><span><span class="dot" style="background:#1a3a8f"></span>Efectivo</span><span>S/ ${d.totalEfectivo.toLocaleString('es-PE')}</span></div>
+        <div class="mcard-row"><span><span class="dot" style="background:#9b59b6"></span>Yape</span><span>S/ ${d.totalYape.toLocaleString('es-PE')}</span></div>
+        <div class="mcard-row"><span>Total recolectado</span><span style="color:#1a3a8f">S/ ${d.recolectadoTotal.toLocaleString('es-PE')}</span></div>
+      </div>
+      <div class="mcard">
+        <div class="mcard-title">👥 Pagantes vs Meta</div>
+        <div class="mcard-row"><span>Meta total alumnos</span><span>${d.metaAlumnos}</span></div>
+        <div class="mcard-row"><span>Pagantes actuales</span><span>${Math.round(d.pagantesTotal)}</span></div>
+        <div class="mcard-row"><span style="color:#e74c3c">Faltan</span><span style="color:#e74c3c">${Math.round(d.metaAlumnos - d.pagantesTotal)} alumnos</span></div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Tutor</th><th>Ciclo</th><th>Meta S/</th><th>Efectivo</th><th>Yape</th><th>Total</th><th>Falta</th><th>Avance</th>
+        </tr></thead>
+        <tbody>
+          ${tableRows}
+          <tr class="total-row">
+            <td>TOTAL SEDE</td><td>—</td>
+            <td>S/ ${d.metaTotal.toLocaleString('es-PE')}</td>
+            <td>S/ ${d.totalEfectivo.toLocaleString('es-PE')}</td>
+            <td>S/ ${d.totalYape.toLocaleString('es-PE')}</td>
+            <td>S/ ${d.recolectadoTotal.toLocaleString('es-PE')}</td>
+            <td style="color:#e74c3c">S/ ${d.faltaTotal.toLocaleString('es-PE')}</td>
+            <td><span class="tag ${tagClass(d.avanceGeneral/100)}">${avPct}%</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>`;
+
+  document.getElementById('mainContent').innerHTML = html;
+  document.getElementById('mainContent').style.display = 'block';
+
+  // Nombres cortos para gráficos
+  const labels = sorted.map(t => t.nombre.split(' ').slice(-2).join(' '));
+  const efectivos = sorted.map(t => t.efectivo);
+  const yapes = sorted.map(t => t.yape);
+  const metas = sorted.map(t => t.metaS);
+
+  new Chart(document.getElementById('barChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Efectivo', data: efectivos, backgroundColor: '#1a3a8f', borderRadius: 4 },
+        { label: 'Yape', data: yapes, backgroundColor: '#9b59b6', borderRadius: 4 },
+        { label: 'Meta', data: metas, type: 'line', borderColor: '#f5a623', backgroundColor: 'transparent', borderDash: [5,3], borderWidth: 2, pointRadius: 4, pointBackgroundColor: '#f5a623', tension: 0 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top', labels: { font: { size: 11 }, boxWidth: 12 } }, tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: S/ ${ctx.parsed.y.toLocaleString('es-PE')}` } } },
+      scales: {
+        x: { stacked: true, grid: { display: false }, ticks: { font: { size: 10 } } },
+        y: { stacked: true, ticks: { font: { size: 11 }, callback: v => 'S/'+v.toLocaleString('es-PE') }, grid: { color: '#f0f2f7' } }
+      }
+    }
+  });
+
+  new Chart(document.getElementById('donutChart'), {
+    type: 'doughnut',
+    data: { labels: ['Efectivo','Yape'], datasets: [{ data: [d.totalEfectivo, d.totalYape], backgroundColor: ['#1a3a8f','#9b59b6'], borderWidth: 3, borderColor: '#fff', hoverOffset: 6 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` S/ ${ctx.parsed.toLocaleString('es-PE')}` } } }, cutout: '65%' }
+  });
+}
+
+// Iniciar
+loadData();
+// Auto-refresh cada 5 minutos
+setInterval(loadData, 5 * 60 * 1000);
+</script>
+</body>
+</html>
